@@ -24,6 +24,41 @@ public class Udon_KB_Column : UdonSharpBehaviour
         }
     }
 
+    [UdonSynced, FieldChangeCallback(nameof(latestDiceValue))]
+    int _latestDiceValue;    
+    public int latestDiceValue
+    {
+        get => _latestDiceValue;
+        set
+        {
+            _latestDiceValue = value;
+        }
+    }
+
+    [UdonSynced, FieldChangeCallback(nameof(latestTurn))]
+    int _latestTurn;
+    public int latestTurn
+    {
+        get => _latestTurn;
+        set
+        {
+            _latestTurn = value;
+        }
+    }
+
+    [UdonSynced, FieldChangeCallback(nameof(latestUpdateTurn))]
+    int _latestUpdateTurn;
+    public int latestUpdateTurn
+    {
+        get => _latestUpdateTurn;
+        set
+        {
+            _latestUpdateTurn = value;
+        }
+    }
+
+    public int latestOppositeScore;
+    public Udon_KB_Column oppositeColumn;
 
     public TextMeshPro scoreTMP;
     public Udon_KB_PlayerData playerData;    
@@ -36,9 +71,7 @@ public class Udon_KB_Column : UdonSharpBehaviour
 
     public Udon_Dice dice1;
     public Udon_Dice dice2;
-    public Udon_Dice dice3;
-
-    
+    public Udon_Dice dice3;    
 
     Udon_Dice[] diceList;
     Udon_Dice[] similarDice;
@@ -47,19 +80,48 @@ public class Udon_KB_Column : UdonSharpBehaviour
     {
         diceList = new Udon_Dice[3];
         similarDice = new Udon_Dice[3];
+
+        latestOppositeScore = oppositeColumn.columnScore;
     }
 
-    public void PlaceDice(Udon_Dice dice)
+    public void Update()
     {
-        int availableSlot = GetAvailableSlot();
 
-        Debug.Log("Available slot is " + availableSlot.ToString());
+        if (!IsOwner())
+            return;
 
-        PlaceInSlot(dice, GetAvailableSlot());
-        UpdateColumnValue();
+        if(playerData.gameManager.currentPlayerTurn != playerData.playerTurnId && playerData.gameManager.currentPlayerTurn > 0)
+        {
+            //make sure that game manager waits for this to be updated, and the game should work 
+            //maybe this can be done by syncing the last turn this was updated
+
+            if(oppositeColumn.columnScore != latestOppositeScore)
+            {
+                latestOppositeScore = oppositeColumn.columnScore;
+                latestDiceValue = 0;
+
+                RemoveDicesWithValue(oppositeColumn.latestDiceValue);
+
+                latestUpdateTurn = playerData.gameManager.currentGameTurn;
+
+                UpdateColumnValue();
+            }
+            else
+            {
+                if(latestUpdateTurn != playerData.gameManager.currentGameTurn)
+                {
+                    latestUpdateTurn = playerData.gameManager.currentGameTurn;
+                    RequestSerialization();
+                }
+            }
+        }
+        else
+        {
+            latestOppositeScore = oppositeColumn.columnScore;
+        }
     }
 
-    int GetAvailableSlot()
+    public int GetAvailableSlot()
     {        
         if(dice1 == null)
         {
@@ -78,39 +140,66 @@ public class Udon_KB_Column : UdonSharpBehaviour
         return 3;
     }
 
-    void PlaceInSlot(Udon_Dice dice, int slot)
+    public void PlaceInSlot(Udon_Dice dice, int slot)
     {
-        //--tell the game manager what dice value we got and where we placed it
-        playerData.gameManager.latestDiceValue = dice.diceValue;
-        playerData.gameManager.latestColumnUsed = columnId;
+        latestDiceValue = dice.diceValue;
+        latestTurn = playerData.gameManager.currentGameTurn;
 
-        if(slot == 0)
+        switch (slot)
         {
-            dice1 = dice;
-            dice.transform.position = slot1.transform.position;
+            case 0:
+                dice1 = dice;
+                dice.transform.position = slot1.transform.position;
 
-            playerData.DicePlaced();
+                break;
+            case 1:
+                dice2 = dice;
+                dice.transform.position = slot2.transform.position;
 
-
-            return;
-        }
-        else if (slot == 1)
-        {
-            dice2 = dice;
-            dice.transform.position = slot2.transform.position;
-
-            playerData.DicePlaced();
-            return;
-        }
-        else if(slot == 2)
-        {
-            dice3 = dice;
-            dice.transform.position = slot3.transform.position;
-
-            playerData.DicePlaced();
-            return;
+                break;
+            case 2:
+                dice3 = dice;
+                dice.transform.position = slot3.transform.position;
+                break;
         }
 
+        UpdateColumnValue();
+    }
+
+    public bool IsSlotUsed(int slotID)
+    {
+        switch (slotID)
+        {
+            case 0:
+                if (dice1)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }             
+            case 1:
+                if (dice2)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }               
+            case 2:
+                if (dice3)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }                
+        }
+
+        return true;
     }
 
     public void RemoveDicesWithValue(int value)
@@ -118,24 +207,21 @@ public class Udon_KB_Column : UdonSharpBehaviour
         if (dice1 != null) 
         {
             if(dice1.diceValue == value)
-            {
-                dice1.parentGameobject.SetActive(false); 
+            {               
                 dice1 = null;
             }
         }
         if (dice2 != null)
         {
             if (dice2.diceValue == value)
-            {
-                dice2.parentGameobject.SetActive(false);
+            {             
                 dice2 = null;
             }
         }
         if (dice3 != null)
         {
             if (dice3.diceValue == value)
-            {
-                dice3.parentGameobject.SetActive(false);
+            {             
                 dice3 = null;
             }
         }
@@ -181,8 +267,7 @@ public class Udon_KB_Column : UdonSharpBehaviour
             columnScore += (i * similarDices) * similarDices;
         }
 
-        RequestSerialization();
-        
+        RequestSerialization();        
     }
 
     public int GetNumberOfUsedSlots()
@@ -195,20 +280,24 @@ public class Udon_KB_Column : UdonSharpBehaviour
             usedSlots++;
         if (dice3 != null)
             usedSlots++;
-
-
         return usedSlots;
     }
-
 
     public void ResetColumn()
     {
         dice1 = null;
         dice2 = null;
         dice3 = null;
-
         
         columnScore = 0;
     }
-    
+
+
+
+    bool IsOwner()
+    {
+        if (Networking.GetOwner(gameObject) == Networking.LocalPlayer)
+            return true;
+        return false;
+    }
 }

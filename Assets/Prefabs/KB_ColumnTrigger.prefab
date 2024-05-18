@@ -284,13 +284,14 @@ MonoBehaviour:
     SerializationNodes: []
   _udonSharpBackingUdonBehaviour: {fileID: 8853944025353486180}
   scoreTMP: {fileID: 5906493083901819916}
+  playerData: {fileID: 0}
+  columnId: 0
   slot1: {fileID: 4692025317032669874}
   slot2: {fileID: 3739866063807926834}
   slot3: {fileID: 3811058506700100585}
   dice1: {fileID: 0}
   dice2: {fileID: 0}
   dice3: {fileID: 0}
-  totalColumnValue: 0
 --- !u!114 &8853944025353486180
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -310,7 +311,7 @@ MonoBehaviour:
   SynchronizePosition: 0
   AllowCollisionOwnershipTransfer: 0
   Reliable: 0
-  _syncMethod: 2
+  _syncMethod: 3
   serializedProgramAsset: {fileID: 11400000, guid: 30281bd1c84838b41a91de0c5e88871a,
     type: 2}
   programSource: {fileID: 11400000, guid: ba3c10207e0e00b4e86ba17e3c339028, type: 2}

@@ -38,6 +38,9 @@ public class Udon_Dice : Udon_NimbatBase
 
     Udon_KB_Column kbColumn;
 
+    public int columnId;
+    public int slotId;
+
     public void RequestLocalAuthority()
     {
         Networking.SetOwner(Networking.LocalPlayer, gameObject);
@@ -63,7 +66,6 @@ public class Udon_Dice : Udon_NimbatBase
             SetDiceState(4);
         }
     }
-
     public override void OnDrop()
     {
         if(diceState == 1)
@@ -84,13 +86,17 @@ public class Udon_Dice : Udon_NimbatBase
     {
         if (isMine)
         {
+            diceValue = 0;
             diceCollider.enabled = true; 
             SetDiceState(0);
+
         }
         else
         {
             diceCollider.enabled = false;
         }
+
+        RequestSerialization();
     }
 
     private void Update()
@@ -109,7 +115,39 @@ public class Udon_Dice : Udon_NimbatBase
                     break;
                 case 1:
                     if (rbody.velocity.magnitude < .01f)
+                    {
+                        playerData.SetLocalState(2);
                         SetDiceState(3);
+                    }
+                    break;
+            }
+        }        
+
+        //--check for when the slot we were placed to become null to turn ourselves off
+        if(diceState == 6)
+        {
+            switch(slotId)
+            {
+                case 0:
+                    if (!playerData.columns[columnId].IsSlotUsed(0))
+                    {
+                        Debug.Log("my slot dissapeared");
+                        parentGameobject.SetActive(false);
+                    }
+                    break;
+                case 1:
+                    if (!playerData.columns[columnId].IsSlotUsed(1))
+                    {
+                        Debug.Log("my slot dissapeared");
+                        parentGameobject.SetActive(false);
+                    }
+                    break;
+                case 2:
+                    if (!playerData.columns[columnId].IsSlotUsed(2))
+                    {
+                        Debug.Log("my slot dissapeared");
+                        parentGameobject.SetActive(false);
+                    }
                     break;
             }
         }
@@ -128,16 +166,17 @@ public class Udon_Dice : Udon_NimbatBase
             Debug.Log("dice aalready in score");
             return;
         }
+           
+        kbColumn = other.GetComponent<Udon_KB_Column>();
 
-        diceCollider.enabled = false;
-        rbody.velocity = Vector3.zero;
-        rbody.angularVelocity = Vector3.zero;        
+        columnId = kbColumn.columnId;
+        slotId = kbColumn.GetAvailableSlot();
+
+        Debug.Log("column id " + columnId.ToString() + " || slot id " + slotId.ToString()); 
+        kbColumn.PlaceInSlot(this,slotId);   
+
         SetDiceState(6);
 
-        kbColumn = other.GetComponent<Udon_KB_Column>();
-        kbColumn.PlaceDice(this);
-
-        playerData.DiceThrowed();
     }
 
     void GetDiceValue()
@@ -156,22 +195,25 @@ public class Udon_Dice : Udon_NimbatBase
 
         switch (newState)
         {
-            case 0:
-                diceCollider.enabled = true;                
+            case 0:                
                 meshRenderer.material = debugMatWhite;
                 break;
-            case 1:
-                diceCollider.enabled = true;
+            case 1:                
                 meshRenderer.material = debugMatGreen;
                 break;
-            case 2:
-                diceCollider.enabled = false;
+            case 2:                
                 meshRenderer.material = debugMatRed;
                 break;
-            case 3:
-                diceCollider.enabled = true;
-                meshRenderer.material = debugMatYellow;
+            case 3:                
+                meshRenderer.material = debugMatYellow;                
                 GetDiceValue();
+                break;
+            case 6:
+
+                diceCollider.enabled = false;
+                rbody.velocity = Vector3.zero;
+                rbody.angularVelocity = Vector3.zero;
+
                 break;
         }
     }

@@ -92,6 +92,16 @@ public class Udon_KB_GameManager : UdonSharpBehaviour
         get => _currentPlayerTurn;
     }
 
+    [UdonSynced, FieldChangeCallback(nameof(currentGameTurn))]
+    int _currentTurn;
+    public int currentGameTurn
+    {
+        get => _currentTurn;
+        set
+        {
+            _currentTurn = value;
+        }
+    }
 
     //------------
 
@@ -161,9 +171,14 @@ public class Udon_KB_GameManager : UdonSharpBehaviour
         debugText_owner.text = player.displayName;
     }
 
+    bool IsOwner()
+    {
+        if (Networking.GetOwner(gameObject) == Networking.LocalPlayer)
+            return true;
+        return false;
+    }
+
     #endregion
-
-
 
     #region ============= Monobehaviour
 
@@ -189,24 +204,70 @@ public class Udon_KB_GameManager : UdonSharpBehaviour
             player2Name = player2Objects.playerName;
             RequestSerialization();
         }
+
+        switch(gameState) 
+        {
+            case -1:
+                break;
+            case 0:
+                break;
+            case 1:                
+                //wait for current player to listen its their turn
+                if(currentPlayerTurn > 0)
+                {
+                    if (currentPlayer.localState > 0)
+                    {
+                        gameState = 2;
+                        RequestSerialization();
+                    }
+                }
+                break;
+            case 2:
+                //if we are here it means current player know its their turn and stuff is happening on their side
+
+                //if current player state is 4 means slots are not filled, if it is 5, this player filled all their
+                //slots and we have to end the game
+                if (currentPlayer.localState == 5)
+                {
+                    gameState = 4;
+                    RequestSerialization();
+                }
+                if (currentPlayer.localState == 4)
+                {
+                    gameState = 3;      
+                    RequestSerialization();
+                }
+                break;
+            case 3:
+                if(currentPlayer.localState == 0)
+                {
+                    gameState = 1; 
+                    RequestSerialization();
+                }
+                if (currentPlayer.localState == 5)
+                {
+                    gameState = 4;
+                    RequestSerialization();
+                }
+                break;
+            case 4:
+                
+                break;
+        }
     }
 
     #endregion
 
     void CheckRegisteredPlayers()
     {
-        if(player1Name != string.Empty && player2Name != string.Empty)
+        if (!IsOwner())
+            return;
+
+        if (player1Name != string.Empty && player2Name != string.Empty)
         {
             gameState = 0;
             RequestSerialization();
         }
-    }
-
-    bool IsOwner()
-    {
-        if (Networking.GetOwner(gameObject) == Networking.LocalPlayer)
-            return true;
-        return false;
     }
 
     public void ResetTableLocal()
@@ -225,8 +286,8 @@ public class Udon_KB_GameManager : UdonSharpBehaviour
         resetButton.SetActive(false);
         playButton.SetActive(false);
 
-        player1Objects.ResetPlayerData();
-        player2Objects.ResetPlayerData();
+        player1Objects.ResetPlayerDataLocal();
+        player2Objects.ResetPlayerDataLocal();
     }
 
     public void ResetSerializedData()
@@ -243,30 +304,28 @@ public class Udon_KB_GameManager : UdonSharpBehaviour
 
     public void StartGame()
     {
+        if (!IsOwner())
+            return;
+
         resetButton.SetActive(false);
         playButton.SetActive(false);
 
-        gameState = 1;
-
-        _currentPlayerTurn = 1;
-        currentPlayerTurn = 1;
-
-        //--call here localy to prevent errors on first turn
-
+        //--start the first turn
+        gameState = 1;        
         RequestSerialization();
-
-        //SetCurrentPlayer(1);
-        //SetGameState(1);
     }
 
     void SetCurrentPlayer(int player)
     {
-        if(player == 1)
+        if (!IsOwner())
+            return;
+
+        if (player == 1)
         {
             currentPlayer = player1Objects;
             oppositePlayer = player2Objects;            
         }
-        else if( player == 2)
+        else if(player == 2)
         {
             currentPlayer = player2Objects;
             oppositePlayer = player1Objects;            
@@ -275,21 +334,12 @@ public class Udon_KB_GameManager : UdonSharpBehaviour
 
     public void SetGameState(int newState)
     {
-        /* - OLD
-        //-1 - game has not started
-        // 0 - players registered but game has not started
-        // 1 - current player gets a dice and has to throw it
-        // 2 - player has to chose a column
-        // 3 - scores are updated and we change the turn of the player
-        // 4 - we switch player turn
-        // 5 - game has ended
-        */
-
         // -1 - game has not started, game is stopped, nothing is happening
         //  0 - players are registering to play but game has not started
         //  1 - a new player turn is assigned
-        //  2 - player finished their turn, update scores, switch turn or end game
-        //  3 - game ended, show scores and restart table for a new game
+        //  2 - new player listened to their turn and they are currently playing
+      
+        
 
         switch (newState)
         {
@@ -305,76 +355,51 @@ public class Udon_KB_GameManager : UdonSharpBehaviour
                 }
                 resetButton.SetActive(false);
                 break;
-
-                /*
             case 1:
 
-                if (!currentPlayer)
-                {
-                    player1Objects.SpawnAvailableDice();
-                }
-                else
-                {
-                    currentPlayer.SpawnAvailableDice();
-                }
+                SwitchPlayer();
 
                 break;
             case 2:
 
                 break;
             case 3:
-                oppositePlayer.columns[latestColumnUsed].RemoveDicesWithValue(latestDiceValue);
-
-                currentPlayer.UpdateScores();
-                oppositePlayer.UpdateScores();
-
-                if(currentPlayer.GetNumberOfUsedSlots() == 9 || oppositePlayer.GetNumberOfUsedSlots() == 9)
-                {
-                    //SetGameState(5);
-                    gameState = 5;
-                }
-                else
-                {
-                    //SetGameState(4);
-                    gameState = 4;
-                }
-
 
                 break;
             case 4:
-                SwitchPlayer();
-                SetGameState(1);
-                break;
-            case 5:
                 GetFinalScore();
-                }*/
-
                 break;
         }
     }
 
     void SwitchPlayer()
     {
-        if(currentPlayerTurn == 1)
-        {
-            currentPlayerTurn = 2;
-            RequestSerialization();
+        if (!IsOwner())
             return;
-        }
-        if(currentPlayerTurn == 2)
+
+        switch (currentPlayerTurn)
         {
-            currentPlayerTurn = 1;
-            RequestSerialization();
-            return;
+            case 0:
+                currentPlayerTurn = 1;
+                break;
+            case 1:
+                currentPlayerTurn = 2;
+                break;
+            case 2:
+                currentPlayerTurn = 1;
+                break;
         }
+
+        Debug.Log("KNUKLEBONES: its turn for player " + currentPlayerTurn.ToString());
+
+        currentGameTurn++;
+
+        RequestSerialization();
     }
 
     void GetFinalScore()
     {
-        player1Objects.UpdateScores();
-        player2Objects.UpdateScores();
         resetButton.SetActive(true);
-
 
         victoryText.gameObject.SetActive(true);
 
