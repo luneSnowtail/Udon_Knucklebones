@@ -36,6 +36,11 @@ public class Udon_KB_Button : UdonSharpBehaviour
                 //request ownership for player 2
                 targetPlayerData.RequestLocalOwnership();
                 break;
+            case 4:
+                //leave the game
+
+
+                break;
         }
     }
 

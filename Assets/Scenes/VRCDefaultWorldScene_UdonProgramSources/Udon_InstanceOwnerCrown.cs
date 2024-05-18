@@ -19,4 +19,9 @@ public class Udon_InstanceOwnerCrown : UdonSharpBehaviour
 
         transform.position = instanceOwner.GetBonePosition(HumanBodyBones.Head) + (Vector3.up * .3f);
     }
+
+    public override void OnPlayerLeft(VRCPlayerApi player)
+    {
+        instanceOwner = Networking.GetOwner(gameObject);        
+    }
 }

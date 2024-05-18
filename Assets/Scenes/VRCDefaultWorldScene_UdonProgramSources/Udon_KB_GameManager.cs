@@ -205,6 +205,12 @@ public class Udon_KB_GameManager : UdonSharpBehaviour
             RequestSerialization();
         }
 
+        if(player1Objects.localState == -1 || player2Objects.localState == -1)
+        {
+            gameState = -2;
+            RequestSerialization();
+        }
+
         switch(gameState) 
         {
             case -1:
@@ -343,6 +349,9 @@ public class Udon_KB_GameManager : UdonSharpBehaviour
 
         switch (newState)
         {
+            case -2:
+
+                break;
             case -1:
                 playButton.SetActive(false);
                 resetButton.SetActive(false);

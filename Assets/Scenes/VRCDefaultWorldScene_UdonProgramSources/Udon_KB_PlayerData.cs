@@ -49,6 +49,8 @@ public class Udon_KB_PlayerData : UdonSharpBehaviour
         }
     }
 
+    VRCPlayerApi currentOwner;
+
     #region =============== Dice sync vars
 
     [UdonSynced, FieldChangeCallback(nameof(dice1Active))]
@@ -182,6 +184,8 @@ public class Udon_KB_PlayerData : UdonSharpBehaviour
 
     Udon_Dice currentDice;
 
+
+
     public void RequestLocalOwnership()
     {
         Debug.Log("requesting ownership");
@@ -191,7 +195,9 @@ public class Udon_KB_PlayerData : UdonSharpBehaviour
         if(Networking.GetOwner(gameObject) == Networking.LocalPlayer)
         {
             Debug.Log("you already own the object");
-            playerName = Networking.LocalPlayer.displayName;
+
+            currentOwner = Networking.LocalPlayer;
+            playerName = currentOwner.displayName;
             RequestSerialization();
         }
 
@@ -209,6 +215,7 @@ public class Udon_KB_PlayerData : UdonSharpBehaviour
     public override void OnOwnershipTransferred(VRCPlayerApi player)
     {
         Debug.Log("ownership transfered");
+        currentOwner = player;
 
         if (IsOwner())
         {
@@ -217,16 +224,41 @@ public class Udon_KB_PlayerData : UdonSharpBehaviour
         }
     }
 
+    public override void OnPlayerLeft(VRCPlayerApi player)
+    {     
+        if(player == currentOwner)
+        {
+            localState = -1;
+        }
+    }
+
+
+    void ResetNetworkData()
+    {
+        playerName = string.Empty;
+        totalScore = 0;
+        localState = -1;
+
+        RequestSerialization();
+    }
+
     private void Update()
     {
         if (gameManager.currentPlayerTurn != playerTurnId)
             return;
 
-        if (gameManager.gameState <= 0)
+        if (gameManager.gameState < 0)
             return;
 
         if (!IsOwner())
             return;
+        
+        if(localState > 0 && currentOwner == null)
+        {
+            localState = -1;
+            RequestSerialization();
+            return;
+        }
 
         // 0 -its not this player turn yet,
         // 1-spawn dice,
@@ -235,7 +267,7 @@ public class Udon_KB_PlayerData : UdonSharpBehaviour
         // 4-my turn is finished, waiting for opposite player to discard dices if needed
         // 5-this turn is over, go back to state 0 and change player
 
-        if (dice1Active && !playerDices[0].gameObject.activeInHierarchy )
+        if (dice1Active && !playerDices[0].gameObject.activeInHierarchy)
         {
             dice1Active = false;
             RequestSerialization();
@@ -316,7 +348,6 @@ public class Udon_KB_PlayerData : UdonSharpBehaviour
                 }
                 break;
             case 3:
-
                 totalScore = 0;
                 for (int i = 0; i < columns.Length; i++)
                 {
@@ -460,12 +491,5 @@ public class Udon_KB_PlayerData : UdonSharpBehaviour
         UpdateScores();
     }
 
-    void ResetNetworkData()
-    {
-        playerName = string.Empty;
-        totalScore = 0;
-        localState = 0;
 
-        RequestSerialization();
-    }
 }
